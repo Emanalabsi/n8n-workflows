@@ -1,0 +1,421 @@
+{
+  "name": "Team Pulse – AI Weekly Status Report Generator",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 8
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        0
+      ],
+      "id": "7748ba46-f410-495f-98e3-8d0c0a9feb60",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.groq.com/openai/v1/chat/completions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer YOUR_GROQ_API_KEY_HERE"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.groqBody) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        768,
+        64
+      ],
+      "id": "8f278954-1855-4aed-9bbf-bf6316708de0",
+      "name": "Groq AI"
+    },
+    {
+      "parameters": {
+        "jsCode": "const rows = $input.all();\n\nif (!rows || rows.length === 0) {\n  return [{\n    json: {\n      error: true,\n      message: \"No entries found for this week\"\n    }\n  }];\n}\n\nconst entries = rows.map((row, i) => {\n  const data = row.json;\n  return `Day ${i + 1}:\n- Worked on: ${data['What did you work on today?']}\n- Completed: ${data['Did you complete anything?']}\n- Blockers: ${data['Any blockers or challenges?']}\n- Productivity: ${data['Rate your productivity today (1-5)']}/5`;\n}).join('\\n\\n');\n\nconst scores = rows.map(r => \n  parseFloat(r.json['Rate your productivity today (1-5)']) || 0\n);\nconst avgProductivity = (scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(1);\n\nconst blockerCount = rows.filter(r => {\n  const blocker = r.json['Any blockers or challenges?'] || '';\n  return !blocker.toLowerCase().includes('no blocker') && blocker.length > 5;\n}).length;\n\nconst systemMessage = \"You are a professional technical writer who writes concise, confident weekly status reports.\";\n\nconst userMessage = `You are writing a weekly status report for a software engineer working on backend development. \nBe specific, confident and professional. Highlight technical achievements clearly. \nIf there were blockers, explain how they were resolved. \nIf productivity was below 3/5 on any day, acknowledge it briefly without over-explaining.\nIf all days had high productivity, open with a strong confident statement.\n\nBased on these daily logs, write exactly 2 paragraphs:\nParagraph 1: Summarize what was accomplished, highlight key completions, mention any challenges overcome.\nParagraph 2: Assess overall productivity and momentum, suggest priorities for next week.\n\nDaily logs:\n${entries}`;\n\n// Build the complete Groq request body here\nconst emailHtml = `<div style=\"font-family:Arial,sans-serif;max-width:600px;margin:auto;\"><div style=\"background:#1e3a5f;padding:24px;border-radius:8px 8px 0 0;\"><h1 style=\"color:white;margin:0;font-size:22px;\">Weekly Status Report</h1><p style=\"color:#93c5fd;margin:4px 0 0;\">WEEK_PLACEHOLDER</p></div><div style=\"background:white;padding:24px;border-left:4px solid #1e3a5f;\"><h2 style=\"color:#1e3a5f;font-size:16px;\">AI Summary</h2><p style=\"color:#374151;line-height:1.6;\">AI_PLACEHOLDER</p></div><div style=\"background:#f3f4f6;padding:16px;text-align:center;\"><p style=\"margin:0;font-size:12px;color:#6b7280;\">Automated by Team Pulse</p></div></div>`;\nconst groqBody = {\n  model: \"llama-3.1-8b-instant\",\n  temperature: 0.7,\n  max_tokens: 500,\n  messages: [\n    { role: \"system\", content: systemMessage },\n    { role: \"user\", content: userMessage }\n  ]\n};\n\nreturn [{\n  json: {\n    groqBody,\n    emailHtml,\n    avgProductivity,\n    blockerCount,\n    totalDays: rows.length,\n    weekOf: new Date().toLocaleDateString('en-US', { \n      month: 'long', day: 'numeric', year: 'numeric' \n    })\n  }\n}];\n\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        352,
+        0
+      ],
+      "id": "fdec1a7a-5e65-44f0-88f7-9897ee7f4015",
+      "name": "Code 1"
+    },
+    {
+      "parameters": {
+        "jsCode": "const codeData = $('Code 1').first().json;\nconst aiSummary = $('Groq AI').first().json.choices[0].message.content;\n\nconst emailHtml = `<div style=\"font-family:Arial,sans-serif;max-width:600px;margin:auto;\">\n<div style=\"background:#1e3a5f;padding:24px;border-radius:8px 8px 0 0;\">\n<h1 style=\"color:white;margin:0;font-size:22px;\">📊 Weekly Status Report</h1>\n<p style=\"color:#93c5fd;margin:4px 0 0;\">${codeData.weekOf}</p>\n</div>\n<div style=\"background:white;padding:24px;border-left:4px solid #1e3a5f;\">\n<h2 style=\"color:#1e3a5f;font-size:16px;\">AI Summary</h2>\n<p style=\"color:#374151;line-height:1.6;\">${aiSummary.replace(/\\n/g, '<br>')}</p>\n</div>\n<div style=\"background:#f3f4f6;padding:16px;display:flex;gap:24px;justify-content:center;\">\n<div style=\"text-align:center;\">\n<p style=\"margin:0;font-size:24px;font-weight:bold;color:#1e3a5f;\">${codeData.avgProductivity}</p>\n<p style=\"margin:0;font-size:12px;color:#6b7280;\">Avg Productivity</p>\n</div>\n<div style=\"text-align:center;\">\n<p style=\"margin:0;font-size:24px;font-weight:bold;color:#1e3a5f;\">${codeData.totalDays}</p>\n<p style=\"margin:0;font-size:12px;color:#6b7280;\">Days Logged</p>\n</div>\n<div style=\"text-align:center;\">\n<p style=\"margin:0;font-size:24px;font-weight:bold;color:#dc2626;\">${codeData.blockerCount}</p>\n<p style=\"margin:0;font-size:12px;color:#6b7280;\">Blockers</p>\n</div>\n</div>\n<div style=\"background:#f3f4f6;padding:16px;text-align:center;border-radius:0 0 8px 8px;\">\n<p style=\"margin:0;font-size:12px;color:#6b7280;\">Automated by Team Pulse · Every Friday at 5PM</p>\n</div>\n</div>`;\n\nreturn [{\n  json: {\n    emailHtml,\n    subject: \"📊 Weekly Status Report – \" + codeData.weekOf\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        976,
+        0
+      ],
+      "id": "6bd6e49f-893a-484e-88c0-10b99ce8da08",
+      "name": "Build Email"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1ykO8tRHF7LXdf4u3A17vtpDToUiwYGi3cmAQ6NA7xig",
+          "mode": "list",
+          "cachedResultName": "Daily Work log (Responses)",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1ykO8tRHF7LXdf4u3A17vtpDToUiwYGi3cmAQ6NA7xig/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 480141117,
+          "mode": "list",
+          "cachedResultName": "Form responses 1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1ykO8tRHF7LXdf4u3A17vtpDToUiwYGi3cmAQ6NA7xig/edit#gid=480141117"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        176,
+        0
+      ],
+      "id": "de69d446-ead4-4e03-b7c8-b3ed8bdcda9c",
+      "name": "Google Sheets",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "ssrssqqC3jASpuwx",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "base": {
+          "__rl": true,
+          "value": "appq2iaynfAOECMyc",
+          "mode": "list",
+          "cachedResultName": "Team Pulse",
+          "cachedResultUrl": "https://airtable.com/appq2iaynfAOECMyc"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tbllH2ZrPxDlB9gui",
+          "mode": "list",
+          "cachedResultName": "Daily Briefings",
+          "cachedResultUrl": "https://airtable.com/appq2iaynfAOECMyc/tbllH2ZrPxDlB9gui"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Name": "={{ \"Week of \" + $('Code 1').first().json.weekOf }}",
+            "Date": "={{ $now.toISO() }}",
+            "AI Summary": "={{ $('Groq AI').first().json.choices[0].message.content }}",
+            "Files Changed": "={{ $('Code 1').first().json.totalDays }}",
+            "Status": "Fresh"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Name",
+              "displayName": "Name",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Date",
+              "displayName": "Date",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "dateTime",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "AI Summary",
+              "displayName": "AI Summary",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Files Changed",
+              "displayName": "Files Changed",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "options",
+              "options": [
+                {
+                  "name": "Fresh",
+                  "value": "Fresh"
+                },
+                {
+                  "name": "Review",
+                  "value": "Review"
+                }
+              ],
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Attachment Summary",
+              "displayName": "Attachment Summary",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {
+          "typecast": true
+        }
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [
+        1200,
+        0
+      ],
+      "id": "694d2260-e922-41ba-993e-fe8e4f06fab1",
+      "name": "Airtable",
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "5qum9NUAp972txB1",
+          "name": "Airtable Personal Access Token account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "emanabsi30@gmail.com",
+        "subject": "={{ $('Build Email').first().json.subject }}",
+        "message": "={{ $('Build Email').first().json.emailHtml }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1424,
+        0
+      ],
+      "id": "3b058c96-ab84-41ec-981c-e1370edcbb95",
+      "name": "Gmail",
+      "webhookId": "c2dc7c00-bb2b-4db9-9b64-88e6a61eee90",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "FdgXPizow6vQzQid",
+          "name": "Gmail account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "c2f76f04-458b-411d-896f-f59f990a7ebb",
+              "leftValue": "={{ $json.error }}",
+              "rightValue": "=true",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        560,
+        0
+      ],
+      "id": "ea09e682-850c-4a6b-8114-91380102a2f6",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "sendTo": "emanabsi30@gmail.com",
+        "subject": "=⚠️ Team Pulse — No entries found for {{ $json.weekOf }}`",
+        "message": "=`{{ $json.errorMessage }}`",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        768,
+        -112
+      ],
+      "id": "e6498e0a-31b2-4453-aa89-13c02d479659",
+      "name": "Reminder Email",
+      "webhookId": "8ef7f3c0-45ba-4476-9ac4-0e2dc1b13042",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "FdgXPizow6vQzQid",
+          "name": "Gmail account 2"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Google Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code 1": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq AI": {
+      "main": [
+        [
+          {
+            "node": "Build Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Email": {
+      "main": [
+        [
+          {
+            "node": "Airtable",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Sheets": {
+      "main": [
+        [
+          {
+            "node": "Code 1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Airtable": {
+      "main": [
+        [
+          {
+            "node": "Gmail",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Reminder Email",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Groq AI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "80c66108-8de2-45ab-9911-dbad41593af8",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "de6c31db3ae6fa08079a5217d15d52903f5994949e74bc6c63462c87e1b899ba"
+  },
+  "id": "DODI5DuORSIhpPYN",
+  "tags": []
+}

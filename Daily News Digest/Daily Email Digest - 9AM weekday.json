@@ -1,0 +1,140 @@
+{
+  "name": "Daily Email Digest - 9AM weekday",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 9
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        0
+      ],
+      "id": "e84fc987-e23b-42e9-9938-8b32f38e6b84",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "url": "https://newsapi.org/v2/top-headlines",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "country",
+              "value": "us"
+            },
+            {
+              "name": "pageSize",
+              "value": "5"
+            },
+            {
+              "name": "apiKey",
+              "value": "4e01d6487e9e42cea02870ae26014dd5"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        208,
+        0
+      ],
+      "id": "3d120974-7f57-4691-9be2-2e68d61c7999",
+      "name": "Fetch news data"
+    },
+    {
+      "parameters": {
+        "jsCode": "const articles = $input.first().json.articles;\nconst date = new Date().toLocaleDateString('en-US', { \n  weekday: 'long', year: 'numeric', \n  month: 'long', day: 'numeric' \n});\n\nlet articlesHtml = articles.map((a, i) => `\n  <tr>\n    <td style=\"padding: 16px; border-bottom: 1px solid #e5e7eb;\">\n      <p style=\"margin:0; font-size:12px; color:#6b7280;\">${a.source.name.toUpperCase()}</p>\n      <a href=\"${a.url}\" style=\"font-size:16px; font-weight:600; color:#1a56db; text-decoration:none;\">\n        ${i + 1}. ${a.title}\n      </a>\n      <p style=\"margin:8px 0 0; font-size:14px; color:#374151;\">\n        ${a.description || 'No description available.'}\n      </p>\n    </td>\n  </tr>\n`).join('');\n\nconst html = `\n<div style=\"font-family:Arial,sans-serif; max-width:600px; margin:auto;\">\n  <div style=\"background:#1e3a5f; padding:24px; border-radius:8px 8px 0 0;\">\n    <h1 style=\"color:white; margin:0; font-size:22px;\">📰 Daily News Digest</h1>\n    <p style=\"color:#93c5fd; margin:4px 0 0;\">${date}</p>\n  </div>\n  <table style=\"width:100%; border-collapse:collapse; background:white;\">\n    ${articlesHtml}\n  </table>\n  <div style=\"background:#f3f4f6; padding:16px; text-align:center; border-radius:0 0 8px 8px;\">\n    <p style=\"margin:0; font-size:12px; color:#6b7280;\">\n      Automated by n8n · <a href=\"https://newsapi.org\" style=\"color:#1a56db;\">Powered by NewsAPI</a>\n    </p>\n  </div>\n</div>\n`;\n\nreturn [{ json: { html, date, articleCount: articles.length } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        416,
+        0
+      ],
+      "id": "9d65ef20-e709-467d-bc5c-42434d3eecce",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "sendTo": "emanabsi30@gmail.com",
+        "subject": "=Weekly Digest Email - {{$json.date}}",
+        "message": "={{ $json.html }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        624,
+        0
+      ],
+      "id": "465883c8-166c-4d9b-9712-c9364ee74ab4",
+      "name": "Send a message",
+      "webhookId": "52f3d561-c54a-4697-8a2f-108597a858e6",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "tS85COhgPWLkOlLv",
+          "name": "Gmail account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Fetch news data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch news data": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "7cd2a6b5-b9a3-4728-889b-eebd0d111648",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "de6c31db3ae6fa08079a5217d15d52903f5994949e74bc6c63462c87e1b899ba"
+  },
+  "id": "vwEmnUfI2145A6rf",
+  "tags": []
+}

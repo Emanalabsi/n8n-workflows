@@ -1,0 +1,310 @@
+{
+  "name": "Warehouse filter Workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "operation": "create",
+        "base": {
+          "__rl": true,
+          "value": "appD01hujw3t59CX5",
+          "mode": "list",
+          "cachedResultName": "n8n-Beginner",
+          "cachedResultUrl": "https://airtable.com/appD01hujw3t59CX5"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tbliSVoIwhuPEsAUe",
+          "mode": "list",
+          "cachedResultName": "processing orders",
+          "cachedResultUrl": "https://airtable.com/appD01hujw3t59CX5/tbliSVoIwhuPEsAUe"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "orderID",
+              "displayName": "orderID",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "employeeName",
+              "displayName": "employeeName",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [
+        880,
+        -96
+      ],
+      "id": "cd3d3ee9-8087-4daa-8922-092952809565",
+      "name": "Create a record",
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "uQLP0KjEv86cZuMv",
+          "name": "Airtable Personal Access Token account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "dfd11557-2d65-482a-b936-178f500237f1",
+              "leftValue": "={{ $json.orderStatus }}",
+              "rightValue": "processing",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            },
+            {
+              "id": "c48db2c7-4cb9-4d72-9082-7f6b3e406724",
+              "leftValue": "={{ $json.employeeName }}",
+              "rightValue": "Mario",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        416,
+        0
+      ],
+      "id": "c1fa80cb-5217-4bc5-bbb5-689b21102937",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "jsCode": "let items = $input.all();\nlet totalBooked = items.length;\nlet bookedSum = 0;\nfor (let i = 0; i < totalBooked; i++) {\n bookedSum = bookedSum + items[i].json.orderPrice;\n}\n\nreturn [{json:{totalBooked,bookedSum}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        640,
+        96
+      ],
+      "id": "d5a89f5f-e5e7-4f86-b1f6-6aa2b8bd57e1",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "authentication": "webhook",
+        "content": "=This week we've {{$json[\"totalBooked\"]}} booked orders with a total value of {{$json[\"bookedSum\"]}}. My Unique ID: {{ $('Fetch sales details ').params[\"headerParameters\"][\"parameters\"][0][\"value\"] }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.discord",
+      "typeVersion": 2,
+      "position": [
+        880,
+        96
+      ],
+      "id": "b38caab2-3ddc-4b1e-bd56-310896973299",
+      "name": "Discord",
+      "webhookId": "51ac92e2-5558-446a-a833-2f048e531943",
+      "credentials": {
+        "discordWebhookApi": {
+          "id": "vCQkNqPFI4xNFmlt",
+          "name": "Discord Webhook account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "weeks",
+              "triggerAtDay": [
+                1
+              ],
+              "triggerAtHour": 9
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        16,
+        0
+      ],
+      "id": "1df06d64-f98f-4922-b38c-376290f0b04a",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "4cbebe5a-b315-4048-9189-4ea4486f834d",
+              "name": "=orderID",
+              "value": "={{ $json.orderID }}",
+              "type": "number"
+            },
+            {
+              "id": "edd487c9-0093-47b2-b6fd-61c7c2182cf9",
+              "name": "employeeName",
+              "value": "={{ $json.employeeName  }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        640,
+        -96
+      ],
+      "id": "d4953b0e-b28e-4a75-97a8-0d16fcd9071b",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "url": "https://learn.app.n8n.cloud/webhook/custom-erp",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "unique_id",
+              "value": "2ab2ee17d6fa802e3cb674a1e6c48ada"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        208,
+        0
+      ],
+      "id": "8f07a642-a5a6-40e9-a143-54cb7b3769b4",
+      "name": "Fetch sales details ",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "2HVm36mPA2bP0zXM",
+          "name": "Header Auth account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Discord",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Fetch sales details ",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Create a record",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch sales details ": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "6cfcb973-a509-41e0-a8b6-cde1b512858d",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "de6c31db3ae6fa08079a5217d15d52903f5994949e74bc6c63462c87e1b899ba"
+  },
+  "id": "Ommfs7kqeaQjggLu",
+  "tags": []
+}
